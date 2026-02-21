@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>恐龍樂園 🦕🔥</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    font-family: 'Arial Rounded MT Bold', 'Helvetica Rounded', Arial, sans-serif;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+    cursor: pointer;
+  }
+
+  .scene {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: linear-gradient(180deg, #87CEEB 0%, #B5E8F7 60%, #98FB98 80%, #228B22 100%);
+    z-index: 0; transition: background 0.5s;
+  }
+
+  .sun {
+    position: fixed; top: 30px; right: 40px;
+    width: 80px; height: 80px;
+    background: #FFD700; border-radius: 50%;
+    box-shadow: 0 0 40px #FFD700, 0 0 80px rgba(255,215,0,0.4);
+    animation: sunPulse 3s ease-in-out infinite; z-index: 1;
+  }
+  @keyframes sunPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
+
+  .cloud { position: fixed; background: white; border-radius: 50px; opacity: 0.85; z-index: 1; }
+  .cloud::before,.cloud::after { content:''; position:absolute; background:white; border-radius:50%; }
+  .cloud1 { width:120px; height:40px; top:50px; animation: cm1 25s linear infinite; }
+  .cloud1::before { width:50px;height:50px;top:-25px;left:20px } .cloud1::after { width:70px;height:60px;top:-30px;left:45px }
+  .cloud2 { width:90px; height:30px; top:120px; animation: cm2 30s linear infinite; }
+  .cloud2::before { width:40px;height:40px;top:-20px;left:15px } .cloud2::after { width:55px;height:45px;top:-22px;left:35px }
+  @keyframes cm1 { from{left:-160px} to{left:110vw} }
+  @keyframes cm2 { from{left:110vw} to{left:-160px} }
+
+  .ground { position: fixed; bottom: 0; width: 100%; height: 20vh; background: linear-gradient(180deg, #4CAF50, #2E7D32); z-index: 2; }
+  .grass-blade {
+    position: fixed; bottom: 19vh; width: 8px;
+    background: #66BB6A; border-radius: 4px 4px 0 0; z-index: 3;
+    transform-origin: bottom center; animation: gs 2s ease-in-out infinite;
+  }
+  @keyframes gs { 0%,100%{transform:rotate(-5deg)} 50%{transform:rotate(5deg)} }
+
+  /* 蛋槽 */
+  .egg-bar {
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 10px; align-items: center;
+    background: rgba(255,255,255,0.88); border-radius: 40px;
+    padding: 8px 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); z-index: 200;
+  }
+  .egg-slot { width: 48px; height: 58px; position: relative; transition: transform 0.3s; }
+  .egg-slot svg { width: 100%; height: 100%; }
+  .egg-slot.empty svg { opacity: 0.25; filter: grayscale(1); }
+  .egg-slot.hatching { animation: eggShake 0.4s ease-in-out; }
+  @keyframes eggShake { 0%,100%{transform:rotate(0)} 20%{transform:rotate(-12deg)} 40%{transform:rotate(12deg)} 60%{transform:rotate(-8deg)} 80%{transform:rotate(8deg)} }
+  .egg-slot.hatched { animation: slotPop 0.5s ease-out; }
+  @keyframes slotPop { 0%{transform:scale(0)} 60%{transform:scale(1.3)} 100%{transform:scale(1)} }
+
+  /* 噴火蛋特殊發光 */
+  .egg-slot.fire-egg { animation: fireGlow 1s ease-in-out infinite; }
+  @keyframes fireGlow {
+    0%,100% { filter: drop-shadow(0 0 4px rgba(255,100,0,0.5)); }
+    50% { filter: drop-shadow(0 0 12px rgba(255,60,0,0.8)); }
+  }
+  .egg-slot.fire-egg.empty svg { opacity: 0.4; filter: grayscale(0.3) drop-shadow(0 0 6px rgba(255,100,0,0.4)); }
+
+  .round-label {
+    position: fixed; top: 78px; left: 50%; transform: translateX(-50%);
+    font-size: 16px; font-weight: bold;
+    color: rgba(255,255,255,0.85); text-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    z-index: 200; pointer-events: none;
+  }
+
+  .hint {
+    position: fixed; bottom: 5vh; left: 50%; transform: translateX(-50%);
+    color: rgba(255,255,255,0.9); font-size: 22px; font-weight: bold;
+    z-index: 200; text-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    animation: hintB 2s ease-in-out infinite;
+    pointer-events: none; white-space: nowrap; transition: opacity 0.5s;
+  }
+  @keyframes hintB { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(-8px)} }
+  .hint.hidden { opacity:0; }
+
+  .game-area { position: fixed; top:0; left:0; width:100%; height:100%; z-index: 10; }
+
+  /* 恐龍 */
+  .dino {
+    position: absolute; pointer-events: none;
+    filter: drop-shadow(3px 5px 4px rgba(0,0,0,0.2)); z-index: 10;
+    animation: dinoAppear 0.5s ease-out;
+  }
+  .dino svg { width:100%; height:100%; }
+  @keyframes dinoAppear { 0%{transform:scale(0) rotate(-20deg);opacity:0} 60%{transform:scale(1.2) rotate(5deg);opacity:1} 100%{transform:scale(1) rotate(0deg)} }
+  @keyframes dinoIdle { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+  @keyframes dinoBounce { 0%{transform:translateY(0) scale(1)} 30%{transform:translateY(-30px) scale(1.1)} 50%{transform:translateY(-35px) scale(1.15)} 100%{transform:translateY(0) scale(1)} }
+
+  /* 噴火龍特殊出場 */
+  .dino.dragon-entrance {
+    animation: dragonAppear 0.8s ease-out;
+  }
+  @keyframes dragonAppear {
+    0% { transform: scale(0) rotate(-30deg); opacity:0; filter: drop-shadow(3px 5px 4px rgba(0,0,0,0.2)) brightness(2); }
+    40% { transform: scale(1.4) rotate(5deg); opacity:1; filter: drop-shadow(0 0 20px rgba(255,100,0,0.8)) brightness(1.3); }
+    70% { transform: scale(0.95) rotate(-2deg); }
+    100% { transform: scale(1) rotate(0deg); filter: drop-shadow(3px 5px 4px rgba(0,0,0,0.2)) brightness(1); }
+  }
+
+  /* 特效 */
+  .screen-flash { position:fixed;top:0;left:0;width:100%;height:100%; pointer-events:none;z-index:50;animation:flash .4s ease-out forwards; }
+  @keyframes flash { 0%{opacity:.3} 100%{opacity:0} }
+
+  /* 火焰螢幕閃光 */
+  .fire-flash { position:fixed;top:0;left:0;width:100%;height:100%; pointer-events:none;z-index:50;animation:fireFlash .6s ease-out forwards; }
+  @keyframes fireFlash { 0%{opacity:.4} 100%{opacity:0} }
+
+  .big-emoji { position:fixed;pointer-events:none;z-index:100;font-size:70px; animation: bigPop 0.8s ease-out forwards; }
+  @keyframes bigPop { 0%{transform:scale(0);opacity:1} 40%{transform:scale(1.3);opacity:1} 100%{transform:scale(1.2) translateY(-50px);opacity:0} }
+
+  .key-display {
+    position:fixed;pointer-events:none;z-index:100;font-size:55px;font-weight:bold;
+    text-shadow:0 4px 12px rgba(0,0,0,0.3); animation: keyPop .8s ease-out forwards;
+  }
+  @keyframes keyPop { 0%{transform:scale(0);opacity:1} 30%{transform:scale(1.4);opacity:1} 100%{transform:scale(1) translateY(-50px);opacity:0} }
+
+  .particle { position:fixed;pointer-events:none;border-radius:50%;z-index:90; }
+
+  /* 火焰粒子 */
+  .fire-particle {
+    position: fixed; pointer-events: none; z-index: 95; border-radius: 50%;
+  }
+
+  /* 大慶祝 */
+  .win-overlay {
+    position: fixed; top:0; left:0; width:100%; height:100%;
+    background: rgba(0,0,0,0.3);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 500; animation: winFadeIn 0.5s ease-out; pointer-events: none;
+  }
+  @keyframes winFadeIn { 0%{opacity:0} 100%{opacity:1} }
+  .win-text {
+    font-size: 52px; font-weight: bold;
+    color: white; text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    animation: winBounce 0.8s ease-out;
+  }
+  @keyframes winBounce { 0%{transform:scale(0)} 50%{transform:scale(1.3)} 70%{transform:scale(0.95)} 100%{transform:scale(1)} }
+  .win-dinos { font-size: 70px; margin-top: 10px; animation: winDinoWave 1s ease-in-out infinite; }
+  @keyframes winDinoWave { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-15px)} }
+  .win-hint { margin-top: 20px; font-size: 24px; color: rgba(255,255,255,0.9); animation: hintB 2s ease-in-out infinite; }
+
+  .dino-label {
+    position: absolute; pointer-events: none; z-index: 100;
+    font-size: 18px; font-weight: bold; color: white;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    text-align: center; white-space: nowrap;
+    animation: labelFade 2.5s ease-out forwards;
+  }
+  @keyframes labelFade { 0%{opacity:0;transform:translateY(10px)} 15%{opacity:1;transform:translateY(0)} 70%{opacity:1} 100%{opacity:0;transform:translateY(-10px)} }
+
+  /* 噴火龍名字用橘色 */
+  .dino-label.fire-label { color: #FF6B00; text-shadow: 0 0 10px rgba(255,100,0,0.6), 0 2px 6px rgba(0,0,0,0.4); }
+
+  .next-round {
+    font-size: 80px; position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%); z-index: 600; pointer-events: none;
+    animation: countPop 0.8s ease-out forwards;
+  }
+  @keyframes countPop { 0%{transform:translate(-50%,-50%) scale(0);opacity:1} 40%{transform:translate(-50%,-50%) scale(1.3);opacity:1} 100%{transform:translate(-50%,-50%) scale(1);opacity:0} }
+</style>
+</head>
+<body>
+  <div class="scene" id="scene"></div>
+  <div class="sun"></div>
+  <div class="cloud cloud1"></div>
+  <div class="cloud cloud2"></div>
+  <div class="ground"></div>
+
+  <div class="egg-bar" id="eggBar"></div>
+  <div class="round-label" id="roundLabel"></div>
+  <div class="hint" id="hint">⌨️ 按鍵盤，把蛋都變成恐龍！</div>
+  <div class="game-area" id="gameArea"></div>
+
+<script>
+  // === 音效 ===
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  let audioCtx;
+  function initAudio() { if(!audioCtx) audioCtx = new AudioCtx(); }
+
+  const scaleNotes = [261,293,329,349,392,440,493,523,587,659,698,784,880,987];
+
+  function playNote(index) {
+    if(!audioCtx) return;
+    const freq = scaleNotes[index % scaleNotes.length];
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(freq*1.2, audioCtx.currentTime+0.08);
+    gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime+0.35);
+    osc.start(); osc.stop(audioCtx.currentTime+0.35);
+  }
+
+  function playHatchSound() {
+    if(!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(500, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime+0.25);
+    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime+0.35);
+    osc.start(); osc.stop(audioCtx.currentTime+0.35);
+  }
+
+  // 噴火音效
+  function playFireSound() {
+    if(!audioCtx) return;
+    // 低沉的轟隆 + 高頻嘶嘶
+    const noise = audioCtx.createOscillator();
+    const nGain = audioCtx.createGain();
+    noise.connect(nGain); nGain.connect(audioCtx.destination);
+    noise.type = 'sawtooth';
+    noise.frequency.setValueAtTime(80, audioCtx.currentTime);
+    noise.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime+0.5);
+    nGain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    nGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime+0.6);
+    noise.start(); noise.stop(audioCtx.currentTime+0.6);
+
+    const hiss = audioCtx.createOscillator();
+    const hGain = audioCtx.createGain();
+    hiss.connect(hGain); hGain.connect(audioCtx.destination);
+    hiss.type = 'sawtooth';
+    hiss.frequency.setValueAtTime(2000, audioCtx.currentTime);
+    hiss.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime+0.4);
+    hGain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+    hGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime+0.4);
+    hiss.start(); hiss.stop(audioCtx.currentTime+0.4);
+  }
+
+  // 噴火龍孵化特殊音效
+  function playDragonHatchSound() {
+    if(!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime+0.2);
+    osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime+0.5);
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime+0.6);
+    osc.start(); osc.stop(audioCtx.currentTime+0.6);
+    // 加一個高音
+    setTimeout(() => {
+      const o2 = audioCtx.createOscillator();
+      const g2 = audioCtx.createGain();
+      o2.connect(g2); g2.connect(audioCtx.destination);
+      o2.type = 'triangle';
+      o2.frequency.setValueAtTime(800, audioCtx.currentTime);
+      o2.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime+0.15);
+      g2.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      g2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime+0.3);
+      o2.start(); o2.stop(audioCtx.currentTime+0.3);
+    }, 200);
+  }
+
+  function playWinFanfare() {
+    if(!audioCtx) return;
+    const melody = [523,523,523,659,784,784,1047,784,1047];
+    const times = [0,0.12,0.24,0.36,0.48,0.6,0.75,0.9,1.05];
+    melody.forEach((freq,i) => {
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.connect(g); g.connect(audioCtx.destination);
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(freq, audioCtx.currentTime+times[i]);
+      g.gain.setValueAtTime(0.22, audioCtx.currentTime+times[i]);
+      g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime+times[i]+0.25);
+      o.start(audioCtx.currentTime+times[i]);
+      o.stop(audioCtx.currentTime+times[i]+0.25);
+    });
+  }
+
+  // === 恐龍資料 ===
+  const dinoColors = [
+    {body:'#4CAF50',belly:'#A5D6A7',spots:'#2E7D32'},
+    {body:'#FF7043',belly:'#FFAB91',spots:'#D84315'},
+    {body:'#AB47BC',belly:'#CE93D8',spots:'#7B1FA2'},
+    {body:'#29B6F6',belly:'#81D4FA',spots:'#0277BD'},
+    {body:'#FFCA28',belly:'#FFF176',spots:'#F9A825'},
+    {body:'#EF5350',belly:'#EF9A9A',spots:'#C62828'},
+    {body:'#26A69A',belly:'#80CBC4',spots:'#00796B'},
+    {body:'#EC407A',belly:'#F48FB1',spots:'#AD1457'},
+  ];
+
+  // 噴火龍專屬顏色
+  const dragonColors = [
+    {body:'#E53935',belly:'#FFAB91',spots:'#B71C1C',wing:'#FF8A65',fire:'#FF6D00'},
+    {body:'#FF6F00',belly:'#FFE0B2',spots:'#E65100',wing:'#FFB74D',fire:'#FF3D00'},
+    {body:'#6A1B9A',belly:'#CE93D8',spots:'#4A148C',wing:'#AB47BC',fire:'#AA00FF'},
+    {body:'#1565C0',belly:'#90CAF9',spots:'#0D47A1',wing:'#42A5F5',fire:'#2196F3'},
+  ];
+
+  const dinoNames = [
+    ['小暴龍','暴暴','霸王龍','小霸王'],
+    ['三角龍','尖尖','角角','小三角'],
+    ['長頸龍','高高','長長','脖子龍'],
+    ['劍龍','刺刺','背背龍','小劍'],
+    ['噴火龍','火火','小火龍','火焰龍','龍龍'],
+  ];
+
+  // === SVG ===
+  function createDinoSVG(type, c) {
+    switch(type) {
+      case 0: return `<svg viewBox="0 0 120 120"><ellipse cx="60" cy="85" rx="28" ry="22" fill="${c.body}"/><ellipse cx="60" cy="88" rx="18" ry="14" fill="${c.belly}"/><circle cx="60" cy="52" r="22" fill="${c.body}"/><circle cx="52" cy="46" r="6" fill="white"/><circle cx="68" cy="46" r="6" fill="white"/><circle cx="53" cy="45" r="3.5" fill="#333"/><circle cx="69" cy="45" r="3.5" fill="#333"/><circle cx="54" cy="44" r="1.5" fill="white"/><circle cx="70" cy="44" r="1.5" fill="white"/><ellipse cx="60" cy="58" rx="10" ry="5" fill="${c.spots}"/><path d="M52 58 Q60 64 68 58" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/><ellipse cx="42" cy="92" rx="8" ry="5" fill="${c.body}"/><ellipse cx="78" cy="92" rx="8" ry="5" fill="${c.body}"/><path d="M35 80 L28 75 L32 82" fill="${c.body}"/><path d="M85 80 L92 75 L88 82" fill="${c.body}"/><ellipse cx="90" cy="85" rx="12" ry="5" fill="${c.body}" transform="rotate(-20,90,85)"/><circle cx="50" cy="35" r="4" fill="${c.spots}"/><circle cx="60" cy="32" r="3" fill="${c.spots}"/><circle cx="70" cy="35" r="4" fill="${c.spots}"/></svg>`;
+      case 1: return `<svg viewBox="0 0 130 120"><ellipse cx="65" cy="80" rx="30" ry="25" fill="${c.body}"/><ellipse cx="65" cy="83" rx="20" ry="16" fill="${c.belly}"/><ellipse cx="55" cy="45" rx="28" ry="22" fill="${c.body}"/><path d="M30 30 L40 45 L32 48" fill="${c.spots}"/><path d="M45 22 L48 40 L40 42" fill="${c.spots}"/><path d="M60 18 L58 38 L52 38" fill="${c.spots}"/><circle cx="48" cy="42" r="5" fill="white"/><circle cx="62" cy="42" r="5" fill="white"/><circle cx="49" cy="41" r="3" fill="#333"/><circle cx="63" cy="41" r="3" fill="#333"/><circle cx="50" cy="40" r="1.2" fill="white"/><circle cx="64" cy="40" r="1.2" fill="white"/><ellipse cx="70" cy="50" rx="8" ry="6" fill="${c.body}"/><path d="M68 52 Q72 56 76 52" stroke="#333" stroke-width="1.5" fill="none"/><ellipse cx="48" cy="95" rx="8" ry="5" fill="${c.body}"/><ellipse cx="82" cy="95" rx="8" ry="5" fill="${c.body}"/><ellipse cx="98" cy="78" rx="14" ry="5" fill="${c.body}" transform="rotate(-15,98,78)"/></svg>`;
+      case 2: return `<svg viewBox="0 0 120 140"><ellipse cx="65" cy="110" rx="28" ry="20" fill="${c.body}"/><ellipse cx="65" cy="113" rx="18" ry="13" fill="${c.belly}"/><path d="M50 100 Q40 60 45 30" stroke="${c.body}" stroke-width="20" fill="none" stroke-linecap="round"/><circle cx="42" cy="25" r="16" fill="${c.body}"/><circle cx="36" cy="20" r="5" fill="white"/><circle cx="48" cy="20" r="5" fill="white"/><circle cx="37" cy="19" r="3" fill="#333"/><circle cx="49" cy="19" r="3" fill="#333"/><circle cx="38" cy="18" r="1.2" fill="white"/><circle cx="50" cy="18" r="1.2" fill="white"/><path d="M36 30 Q42 35 48 30" stroke="#333" stroke-width="1.5" fill="none" stroke-linecap="round"/><circle cx="42" cy="12" r="3" fill="${c.spots}"/><ellipse cx="50" cy="122" rx="8" ry="5" fill="${c.body}"/><ellipse cx="80" cy="122" rx="8" ry="5" fill="${c.body}"/><ellipse cx="95" cy="108" rx="14" ry="5" fill="${c.body}" transform="rotate(-10,95,108)"/><circle cx="48" cy="70" r="3" fill="${c.spots}"/><circle cx="44" cy="82" r="2.5" fill="${c.spots}"/></svg>`;
+      case 3: return `<svg viewBox="0 0 140 120"><ellipse cx="70" cy="80" rx="35" ry="22" fill="${c.body}"/><ellipse cx="70" cy="83" rx="22" ry="14" fill="${c.belly}"/><circle cx="40" cy="60" r="16" fill="${c.body}"/><circle cx="34" cy="55" r="5" fill="white"/><circle cx="46" cy="55" r="5" fill="white"/><circle cx="35" cy="54" r="3" fill="#333"/><circle cx="47" cy="54" r="3" fill="#333"/><circle cx="36" cy="53" r="1.2" fill="white"/><circle cx="48" cy="53" r="1.2" fill="white"/><path d="M36 65 Q40 69 44 65" stroke="#333" stroke-width="1.5" fill="none"/><polygon points="55,62 60,42 65,62" fill="${c.spots}"/><polygon points="68,58 73,36 78,58" fill="${c.spots}"/><polygon points="80,60 85,42 90,60" fill="${c.spots}"/><polygon points="92,65 96,48 100,65" fill="${c.spots}"/><ellipse cx="52" cy="95" rx="7" ry="5" fill="${c.body}"/><ellipse cx="88" cy="95" rx="7" ry="5" fill="${c.body}"/><path d="M100 78 L120 72 M100 82 L118 85" stroke="${c.body}" stroke-width="5" stroke-linecap="round"/><circle cx="120" cy="72" r="4" fill="${c.spots}"/><circle cx="118" cy="85" r="4" fill="${c.spots}"/></svg>`;
+      case 4: // 噴火龍！
+        const w = c.wing || '#FF8A65';
+        return `<svg viewBox="0 0 150 130" xmlns="http://www.w3.org/2000/svg">
+          <!-- 翅膀 -->
+          <path d="M45 60 L15 20 L35 50 L25 15 L42 48 L38 8 L50 50" fill="${w}" opacity="0.85"/>
+          <path d="M95 60 L125 20 L105 50 L115 15 L98 48 L102 8 L90 50" fill="${w}" opacity="0.85"/>
+          <!-- 身體 -->
+          <ellipse cx="70" cy="85" rx="30" ry="24" fill="${c.body}"/>
+          <ellipse cx="70" cy="88" rx="20" ry="16" fill="${c.belly}"/>
+          <!-- 頭 -->
+          <circle cx="70" cy="50" r="24" fill="${c.body}"/>
+          <!-- 角 -->
+          <path d="M56 32 L50 15 L58 30" fill="${c.spots}"/>
+          <path d="M84 32 L90 15 L82 30" fill="${c.spots}"/>
+          <!-- 眼睛 - 更兇但可愛 -->
+          <circle cx="60" cy="44" r="7" fill="white"/>
+          <circle cx="80" cy="44" r="7" fill="white"/>
+          <circle cx="61" cy="43" r="4" fill="#333"/>
+          <circle cx="81" cy="43" r="4" fill="#333"/>
+          <circle cx="62" cy="42" r="1.8" fill="white"/>
+          <circle cx="82" cy="42" r="1.8" fill="white"/>
+          <!-- 眉毛（可愛兇） -->
+          <path d="M54 37 L66 39" stroke="${c.spots}" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M86 37 L74 39" stroke="${c.spots}" stroke-width="2.5" stroke-linecap="round"/>
+          <!-- 鼻孔 -->
+          <circle cx="65" cy="54" r="2" fill="${c.spots}"/>
+          <circle cx="75" cy="54" r="2" fill="${c.spots}"/>
+          <!-- 嘴巴 - 微笑露牙 -->
+          <path d="M58 58 Q70 68 82 58" stroke="${c.spots}" stroke-width="2" fill="none"/>
+          <path d="M62 58 L64 62 L66 58" fill="white"/>
+          <path d="M74 58 L76 62 L78 58" fill="white"/>
+          <!-- 腳 -->
+          <ellipse cx="50" cy="100" rx="10" ry="6" fill="${c.body}"/>
+          <ellipse cx="90" cy="100" rx="10" ry="6" fill="${c.body}"/>
+          <!-- 尾巴 -->
+          <path d="M100 85 Q120 80 130 70 Q125 82 115 88" fill="${c.body}"/>
+          <!-- 尾巴火焰 -->
+          <ellipse cx="132" cy="65" rx="6" ry="8" fill="#FF6D00"/>
+          <ellipse cx="132" cy="63" rx="4" ry="6" fill="#FFAB00"/>
+          <ellipse cx="132" cy="62" rx="2" ry="4" fill="#FFF176"/>
+        </svg>`;
+      default: return createDinoSVG(0,c);
+    }
+  }
+
+  function createEggSVG(color, isDragon) {
+    if (isDragon) {
+      // 噴火龍的蛋：紅橘色帶火焰紋
+      return `<svg viewBox="0 0 60 80">
+        <ellipse cx="30" cy="42" rx="22" ry="30" fill="#FFF3E0" stroke="${color}" stroke-width="2.5"/>
+        <path d="M20 50 Q22 42 18 35 Q22 40 25 34 Q24 42 22 50" fill="#FF6D00" opacity="0.5"/>
+        <path d="M35 55 Q37 47 33 40 Q37 45 40 39 Q39 47 37 55" fill="#FF6D00" opacity="0.5"/>
+        <path d="M26 35 Q28 28 25 22 Q28 26 30 21 Q30 28 28 35" fill="#FFAB00" opacity="0.4"/>
+        <circle cx="30" cy="42" r="4" fill="${color}" opacity="0.3"/>
+      </svg>`;
+    }
+    return `<svg viewBox="0 0 60 80"><ellipse cx="30" cy="42" rx="22" ry="30" fill="#FFF8E1" stroke="${color}" stroke-width="2.5"/><circle cx="22" cy="35" r="4" fill="${color}" opacity="0.4"/><circle cx="35" cy="48" r="5" fill="${color}" opacity="0.4"/><circle cx="25" cy="52" r="3" fill="${color}" opacity="0.3"/></svg>`;
+  }
+
+  function createMiniDinoSVG(type, c) {
+    switch(type) {
+      case 0: return `<svg viewBox="0 0 60 60"><circle cx="30" cy="24" r="14" fill="${c.body}"/><circle cx="25" cy="20" r="3.5" fill="white"/><circle cx="35" cy="20" r="3.5" fill="white"/><circle cx="26" cy="19.5" r="2" fill="#333"/><circle cx="36" cy="19.5" r="2" fill="#333"/><path d="M25 28 Q30 32 35 28" stroke="white" stroke-width="1.5" fill="none"/><ellipse cx="30" cy="42" rx="16" ry="12" fill="${c.body}"/><ellipse cx="30" cy="44" rx="10" ry="8" fill="${c.belly}"/></svg>`;
+      case 1: return `<svg viewBox="0 0 60 60"><circle cx="28" cy="26" r="14" fill="${c.body}"/><path d="M16 16 L22 26 L18 28" fill="${c.spots}"/><path d="M26 12 L27 24 L23 25" fill="${c.spots}"/><circle cx="24" cy="23" r="3" fill="white"/><circle cx="34" cy="23" r="3" fill="white"/><circle cx="25" cy="22.5" r="1.8" fill="#333"/><circle cx="35" cy="22.5" r="1.8" fill="#333"/><ellipse cx="30" cy="44" rx="16" ry="12" fill="${c.body}"/><ellipse cx="30" cy="46" rx="10" ry="8" fill="${c.belly}"/></svg>`;
+      case 2: return `<svg viewBox="0 0 60 65"><circle cx="24" cy="14" r="10" fill="${c.body}"/><circle cx="20" cy="11" r="3" fill="white"/><circle cx="28" cy="11" r="3" fill="white"/><circle cx="21" cy="10.5" r="1.8" fill="#333"/><circle cx="29" cy="10.5" r="1.8" fill="#333"/><path d="M28 42 Q22 25 24 14" stroke="${c.body}" stroke-width="10" fill="none"/><ellipse cx="34" cy="48" rx="16" ry="12" fill="${c.body}"/><ellipse cx="34" cy="50" rx="10" ry="8" fill="${c.belly}"/></svg>`;
+      case 3: return `<svg viewBox="0 0 60 60"><circle cx="22" cy="28" r="12" fill="${c.body}"/><circle cx="18" cy="25" r="3" fill="white"/><circle cx="26" cy="25" r="3" fill="white"/><circle cx="19" cy="24.5" r="1.8" fill="#333"/><circle cx="27" cy="24.5" r="1.8" fill="#333"/><ellipse cx="34" cy="40" rx="18" ry="12" fill="${c.body}"/><ellipse cx="34" cy="42" rx="11" ry="8" fill="${c.belly}"/><polygon points="28,32 30,22 32,32" fill="${c.spots}"/><polygon points="35,30 37,18 39,30" fill="${c.spots}"/><polygon points="42,32 44,22 46,32" fill="${c.spots}"/></svg>`;
+      case 4: // mini 噴火龍
+        const w = c.wing || '#FF8A65';
+        return `<svg viewBox="0 0 60 60">
+          <path d="M18 28 L8 12 L20 24 L12 8 L22 22" fill="${w}" opacity="0.8"/>
+          <path d="M42 28 L52 12 L40 24 L48 8 L38 22" fill="${w}" opacity="0.8"/>
+          <circle cx="30" cy="24" r="14" fill="${c.body}"/>
+          <path d="M22 16 L20 6 L25 15" fill="${c.spots}"/>
+          <path d="M38 16 L40 6 L35 15" fill="${c.spots}"/>
+          <circle cx="25" cy="20" r="3.5" fill="white"/><circle cx="35" cy="20" r="3.5" fill="white"/>
+          <circle cx="26" cy="19.5" r="2" fill="#333"/><circle cx="36" cy="19.5" r="2" fill="#333"/>
+          <path d="M25 28 Q30 32 35 28" stroke="${c.spots}" stroke-width="1.5" fill="none"/>
+          <ellipse cx="30" cy="42" rx="16" ry="12" fill="${c.body}"/>
+          <ellipse cx="30" cy="44" rx="10" ry="8" fill="${c.belly}"/>
+        </svg>`;
+      default: return createMiniDinoSVG(0,c);
+    }
+  }
+
+  // === 噴火特效！ ===
+  function breatheFire(dino) {
+    const rect = dino.getBoundingClientRect();
+    const facing = dino.style.transform.includes('scaleX(-1)') ? -1 : 1;
+    const startX = facing > 0 ? rect.right - 10 : rect.left + 10;
+    const startY = rect.top + rect.height * 0.38;
+
+    playFireSound();
+
+    // 噴出一串火焰粒子
+    const fireColors = ['#FF6D00','#FF3D00','#FFAB00','#FF8F00','#FFF176','#FF5722','#FF9800'];
+    for (let i = 0; i < 25; i++) {
+      setTimeout(() => {
+        const p = document.createElement('div');
+        p.className = 'fire-particle';
+        const s = 8 + Math.random() * 18;
+        p.style.width = s+'px'; p.style.height = s+'px';
+        p.style.background = fireColors[Math.floor(Math.random()*fireColors.length)];
+        p.style.left = startX + 'px'; p.style.top = startY + 'px';
+        p.style.boxShadow = `0 0 ${s}px ${fireColors[Math.floor(Math.random()*fireColors.length)]}`;
+
+        const dist = 60 + Math.random() * 120;
+        const tx = facing * dist;
+        const ty = (Math.random() - 0.5) * 60;
+
+        p.animate([
+          { transform: 'translate(0,0) scale(1)', opacity: 0.9 },
+          { transform: `translate(${tx*0.5}px, ${ty*0.3}px) scale(1.3)`, opacity: 0.7 },
+          { transform: `translate(${tx}px, ${ty}px) scale(0.2)`, opacity: 0 }
+        ], { duration: 400 + Math.random()*300, easing: 'ease-out' });
+
+        document.body.appendChild(p);
+        setTimeout(() => p.remove(), 700);
+      }, i * 20);
+    }
+
+    // 火焰閃光
+    const f = document.createElement('div');
+    f.className = 'fire-flash';
+    f.style.background = 'radial-gradient(circle at ' + (facing>0?'70%':'30%') + ' 40%, rgba(255,100,0,0.4), transparent 60%)';
+    document.body.appendChild(f);
+    setTimeout(() => f.remove(), 600);
+  }
+
+  // === 遊戲狀態 ===
+  const gameArea = document.getElementById('gameArea');
+  const eggBar = document.getElementById('eggBar');
+  const roundLabel = document.getElementById('roundLabel');
+  const hintEl = document.getElementById('hint');
+
+  let round = 1;
+  let eggsPerRound = 4;
+  let slots = [];
+  let hatchIndex = 0;
+  let isWinning = false;
+  let allDinos = []; // { el, type, color, isDragon }
+  let hasInteracted = false;
+
+  // 草地
+  for(let i=0;i<15;i++){
+    const b=document.createElement('div');b.className='grass-blade';
+    b.style.left=(Math.random()*100)+'vw';b.style.height=(15+Math.random()*25)+'px';
+    b.style.animationDelay=(Math.random()*2)+'s';document.body.appendChild(b);
+  }
+
+  // === 開始一輪 ===
+  function startRound() {
+    isWinning = false;
+    hatchIndex = 0;
+    slots = [];
+    eggBar.innerHTML = '';
+    allDinos.forEach(d => { if(d.el.parentNode) d.el.remove(); });
+    allDinos = [];
+
+    eggsPerRound = Math.min(4 + Math.floor((round-1)*1), 8);
+    roundLabel.textContent = `第 ${round} 關 — 把 ${eggsPerRound} 顆蛋都孵出來！`;
+
+    // 決定哪些位置放噴火龍（每關至少1隻，後面可能更多）
+    const dragonCount = Math.min(1 + Math.floor((round-1)/2), 3);
+    const dragonSlots = new Set();
+    // 最後一顆一定是噴火龍（壓軸）
+    dragonSlots.add(eggsPerRound - 1);
+    while (dragonSlots.size < dragonCount && dragonSlots.size < eggsPerRound) {
+      dragonSlots.add(Math.floor(Math.random() * eggsPerRound));
+    }
+
+    for (let i = 0; i < eggsPerRound; i++) {
+      const isDragon = dragonSlots.has(i);
+      const type = isDragon ? 4 : (i % 4);
+      const color = isDragon
+        ? dragonColors[Math.floor(Math.random()*dragonColors.length)]
+        : dinoColors[Math.floor(Math.random()*dinoColors.length)];
+
+      const slot = document.createElement('div');
+      slot.className = 'egg-slot empty' + (isDragon ? ' fire-egg' : '');
+      slot.innerHTML = createEggSVG(isDragon ? color.body : color.body, isDragon);
+
+      eggBar.appendChild(slot);
+      slots.push({ el: slot, type, color, hatched: false, isDragon });
+    }
+
+    hintEl.textContent = '⌨️ 按鍵盤，把蛋都變成恐龍！';
+    hintEl.classList.remove('hidden');
+  }
+
+  // === 孵一顆蛋 ===
+  function hatchNext() {
+    if (isWinning || hatchIndex >= slots.length) return;
+
+    const slot = slots[hatchIndex];
+    slot.hatched = true;
+    slot.el.classList.remove('empty', 'fire-egg');
+    slot.el.classList.add('hatching');
+
+    if (slot.isDragon) {
+      playDragonHatchSound();
+    } else {
+      playHatchSound();
+    }
+
+    setTimeout(() => {
+      slot.el.classList.remove('hatching');
+      slot.el.classList.add('hatched');
+      slot.el.innerHTML = createMiniDinoSVG(slot.type, slot.color);
+
+      const x = 80 + Math.random()*(window.innerWidth-160);
+      const y = window.innerHeight*0.2 + Math.random()*(window.innerHeight*0.4);
+      spawnDino(x, y, slot.type, slot.color, slot.isDragon);
+
+      hatchIndex++;
+      if (hatchIndex >= slots.length) {
+        setTimeout(() => winRound(), 400);
+      }
+    }, 400);
+  }
+
+  // === 場地上產生恐龍 ===
+  function spawnDino(x, y, type, color, isDragon) {
+    const size = isDragon ? (100 + Math.random()*30) : (80 + Math.random()*30);
+    const dino = document.createElement('div');
+    dino.className = 'dino' + (isDragon ? ' dragon-entrance' : '');
+    dino.style.width = size+'px';
+    dino.style.height = size+'px';
+    dino.style.left = (x-size/2)+'px';
+    dino.style.top = (y-size/2)+'px';
+    dino.innerHTML = createDinoSVG(type, color);
+    if(Math.random()>0.5) dino.style.transform = 'scaleX(-1)';
+    gameArea.appendChild(dino);
+    const dinoObj = { el: dino, type, color, isDragon };
+    allDinos.push(dinoObj);
+
+    // 名字標籤
+    const names = dinoNames[type];
+    const label = document.createElement('div');
+    label.className = 'dino-label' + (isDragon ? ' fire-label' : '');
+    label.textContent = names[Math.floor(Math.random()*names.length)] + (isDragon ? ' 🔥' : '');
+    label.style.left = (x-50)+'px'; label.style.top = (y-size/2-10)+'px'; label.style.width='100px';
+    gameArea.appendChild(label);
+    setTimeout(()=>label.remove(),2500);
+
+    // 噴火龍出場噴火！
+    if (isDragon) {
+      setTimeout(() => {
+        if(dino.parentNode) breatheFire(dino);
+      }, 600);
+    }
+
+    setTimeout(() => {
+      if(dino.parentNode) {
+        dino.style.animation = 'dinoIdle 1.5s ease-in-out infinite';
+        startWalking(dino);
+      }
+    }, isDragon ? 800 : 500);
+
+    // 噴火龍定期噴火
+    if (isDragon) {
+      const fireInterval = setInterval(() => {
+        if (!dino.parentNode) { clearInterval(fireInterval); return; }
+        breatheFire(dino);
+      }, 3000 + Math.random()*3000);
+    }
+  }
+
+  function startWalking(dino) {
+    function walk() {
+      if(!dino.parentNode) return;
+      const nx = 20+Math.random()*(window.innerWidth-140);
+      const ny = window.innerHeight*0.2+Math.random()*(window.innerHeight*0.4);
+      const dur = 4000+Math.random()*4000;
+      const cx = parseFloat(dino.style.left)||0;
+      dino.style.transform = nx<cx?'scaleX(-1)':'scaleX(1)';
+      dino.style.transition = `left ${dur}ms ease-in-out, top ${dur}ms ease-in-out`;
+      dino.style.left = nx+'px'; dino.style.top = ny+'px';
+      setTimeout(walk, dur+2000+Math.random()*3000);
+    }
+    setTimeout(walk, 2000+Math.random()*2000);
+  }
+
+  // === 贏了！ ===
+  function winRound() {
+    isWinning = true;
+    playWinFanfare();
+
+    // 所有恐龍跳
+    allDinos.forEach(d => {
+      if(d.el.parentNode) d.el.style.animation = 'dinoBounce 0.6s ease-in-out infinite';
+    });
+
+    // 所有噴火龍噴火慶祝
+    allDinos.filter(d=>d.isDragon).forEach((d,i) => {
+      setTimeout(() => { if(d.el.parentNode) breatheFire(d.el); }, i*400);
+      setTimeout(() => { if(d.el.parentNode) breatheFire(d.el); }, 1000+i*400);
+    });
+
+    // 煙火
+    for(let i=0;i<8;i++) setTimeout(()=>launchFirework(), i*300);
+
+    const overlay = document.createElement('div');
+    overlay.className = 'win-overlay';
+    overlay.innerHTML = `
+      <div class="win-text">🎉🔥 好棒！過關了！🔥🎉</div>
+      <div class="win-dinos">${'🦕🦖🐉'.repeat(Math.min(round,3))}</div>
+      <div class="win-hint">再按一下，玩下一關！</div>
+    `;
+    document.body.appendChild(overlay);
+
+    function nextRoundHandler() {
+      document.removeEventListener('keydown', nextRoundHandler);
+      document.removeEventListener('click', nextRoundHandler);
+      document.removeEventListener('touchstart', nextRoundHandler);
+      overlay.remove();
+      allDinos.forEach(d=>{if(d.el.parentNode){d.el.style.transition='opacity 0.5s';d.el.style.opacity='0';setTimeout(()=>d.el.remove(),500);}});
+      round++;
+      const countEl = document.createElement('div');
+      countEl.className = 'next-round';
+      countEl.textContent = `第 ${round} 關！`;
+      document.body.appendChild(countEl);
+      setTimeout(()=>countEl.remove(), 1000);
+      setTimeout(() => startRound(), 800);
+    }
+
+    setTimeout(() => {
+      document.addEventListener('keydown', nextRoundHandler, {once:true});
+      document.addEventListener('click', nextRoundHandler, {once:true});
+      document.addEventListener('touchstart', nextRoundHandler, {once:true});
+    }, 1500);
+  }
+
+  // === 煙火 ===
+  function launchFirework() {
+    const x = Math.random()*window.innerWidth;
+    const y = 50+Math.random()*(window.innerHeight*0.5);
+    const colors = ['#FF6B6B','#4ECDC4','#45B7D1','#FFEAA7','#DDA0DD','#fd79a8','#a29bfe','#00b894','#FF7675','#FF6D00','#FFAB00'];
+    const color = colors[Math.floor(Math.random()*colors.length)];
+    for(let i=0;i<16;i++){
+      const p = document.createElement('div');
+      const s = 6+Math.random()*8;
+      p.style.cssText = `position:fixed;width:${s}px;height:${s}px;background:${color};border-radius:50%;left:${x}px;top:${y}px;z-index:510;pointer-events:none;`;
+      const angle = (Math.PI*2/16)*i+Math.random()*0.3;
+      const dist = 50+Math.random()*100;
+      const tx = Math.cos(angle)*dist, ty = Math.sin(angle)*dist+30;
+      p.animate([{transform:'translate(0,0) scale(1)',opacity:1},{transform:`translate(${tx}px,${ty}px) scale(0)`,opacity:0}],{duration:800+Math.random()*400,easing:'ease-out'});
+      document.body.appendChild(p);
+      setTimeout(()=>p.remove(),1200);
+    }
+  }
+
+  // === 特效 ===
+  function burstParticles(x,y) {
+    const colors = ['#FF6B6B','#4ECDC4','#45B7D1','#FFEAA7','#DDA0DD','#FF7675','#74b9ff','#a29bfe'];
+    for(let i=0;i<10;i++){
+      const p=document.createElement('div');p.className='particle';
+      const s=6+Math.random()*12;
+      p.style.width=s+'px';p.style.height=s+'px';
+      p.style.background=colors[Math.floor(Math.random()*colors.length)];
+      p.style.left=x+'px';p.style.top=y+'px';
+      const a=(Math.PI*2/10)*i+Math.random()*0.5;
+      const d=30+Math.random()*60;
+      const tx=Math.cos(a)*d, ty=Math.sin(a)*d-20;
+      p.animate([{transform:'translate(0,0) scale(1)',opacity:1},{transform:`translate(${tx}px,${ty}px) scale(0)`,opacity:0}],{duration:500+Math.random()*300,easing:'ease-out'});
+      gameArea.appendChild(p);setTimeout(()=>p.remove(),800);
+    }
+  }
+
+  function showBigEmoji(x,y,forceEmoji) {
+    const emojis = forceEmoji ? [forceEmoji] : ['🦕','🦖','⭐','🌟','💕','🎉','✨','🌸','🎈','🔥','🐉'];
+    const el=document.createElement('div');el.className='big-emoji';
+    el.textContent=emojis[Math.floor(Math.random()*emojis.length)];
+    el.style.left=(x-35)+'px';el.style.top=(y-35)+'px';
+    gameArea.appendChild(el);setTimeout(()=>el.remove(),800);
+  }
+
+  function screenFlash(color) {
+    const f=document.createElement('div');f.className='screen-flash';
+    f.style.background=color||`hsl(${Math.random()*360},80%,70%)`;
+    document.body.appendChild(f);setTimeout(()=>f.remove(),400);
+  }
+
+  function showKeyChar(key,x,y) {
+    const el=document.createElement('div');el.className='key-display';
+    el.textContent=key.toUpperCase();
+    el.style.left=(x-20)+'px';el.style.top=(y-30)+'px';
+    el.style.color=`hsl(${Math.random()*360},80%,70%)`;
+    gameArea.appendChild(el);setTimeout(()=>el.remove(),800);
+  }
+
+  // === 事件 ===
+  document.addEventListener('keydown', (e) => {
+    if(e.repeat) return;
+    initAudio();
+    if(!hasInteracted){hasInteracted=true;hintEl.classList.add('hidden');}
+    if(isWinning) return;
+
+    // 下一顆是噴火龍嗎？
+    const nextSlot = slots[hatchIndex];
+    const isDragonNext = nextSlot && nextSlot.isDragon;
+
+    playNote(hatchIndex);
+    hatchNext();
+
+    const x = 80+Math.random()*(window.innerWidth-160);
+    const y = window.innerHeight*0.2+Math.random()*(window.innerHeight*0.45);
+    showKeyChar(e.key, x, y-50);
+    burstParticles(x, y);
+
+    if (isDragonNext) {
+      showBigEmoji(x, y-30, '🔥');
+      showBigEmoji(x+40, y, '🐉');
+      screenFlash('rgba(255,100,0,0.35)');
+    } else {
+      showBigEmoji(x-40+Math.random()*80, y-20+Math.random()*40);
+      screenFlash();
+    }
+  });
+
+  function handleTap(x,y) {
+    initAudio();
+    if(!hasInteracted){hasInteracted=true;hintEl.classList.add('hidden');}
+    if(isWinning) return;
+
+    const nextSlot = slots[hatchIndex];
+    const isDragonNext = nextSlot && nextSlot.isDragon;
+
+    playNote(hatchIndex);
+    hatchNext();
+    burstParticles(x,y);
+
+    if (isDragonNext) {
+      showBigEmoji(x, y-40, '🔥');
+      showBigEmoji(x+30, y, '🐉');
+      screenFlash('rgba(255,100,0,0.35)');
+    } else {
+      showBigEmoji(x,y-40);
+      screenFlash();
+    }
+  }
+
+  document.addEventListener('click',(e)=>handleTap(e.clientX,e.clientY));
+  document.addEventListener('touchstart',(e)=>{
+    e.preventDefault();
+    for(const t of e.changedTouches) handleTap(t.clientX,t.clientY);
+  },{passive:false});
+
+  // 恐龍偶爾自己跳 + 噴火龍偶爾噴火
+  setInterval(()=>{
+    if(allDinos.length>=1 && Math.random()>0.4){
+      const d=allDinos[Math.floor(Math.random()*allDinos.length)];
+      if(d.el.parentNode){
+        d.el.style.animation='dinoBounce 0.6s ease-in-out';
+        setTimeout(()=>{if(d.el.parentNode)d.el.style.animation='dinoIdle 1.5s ease-in-out infinite';},600);
+      }
+    }
+  }, 3500);
+
+  // 開始！
+  startRound();
+</script>
+</body>
+</html>
