@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="噴火龍冒險">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1a1a2e">
+<title>噴火龍冒險 🐉🔥</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{
+  overflow:hidden;height:100%;width:100%;position:fixed;top:0;left:0;
+  font-family:'Arial Rounded MT Bold','Helvetica Rounded',Arial,sans-serif;
+  touch-action:none;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;
+  -webkit-tap-highlight-color:transparent;overscroll-behavior:none;
+}
+
+/* === 開始畫面 === */
+.start-screen{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:linear-gradient(180deg,#1a1a2e 0%,#16213e 40%,#0f3460 70%,#e94560 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:9999;
+}
+.start-title{font-size:9vmin;font-weight:bold;color:#FF6D00;text-shadow:0 0 3vmin rgba(255,109,0,.6),0 .5vmin 2vmin rgba(0,0,0,.3);animation:titleGlow 2s ease-in-out infinite}
+@keyframes titleGlow{0%,100%{text-shadow:0 0 3vmin rgba(255,109,0,.6),0 .5vmin 2vmin rgba(0,0,0,.3)}50%{text-shadow:0 0 5vmin rgba(255,109,0,.9),0 0 8vmin rgba(255,60,0,.4),0 .5vmin 2vmin rgba(0,0,0,.3)}}
+.start-dragon{font-size:18vmin;animation:dragonFloat 3s ease-in-out infinite}
+@keyframes dragonFloat{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-2vmin) rotate(2deg)}}
+.start-btn{
+  margin-top:3vh;padding:3vmin 10vmin;font-size:5vmin;font-weight:bold;
+  background:linear-gradient(135deg,#FF3D00,#FF6D00,#FFAB00);
+  color:white;border:none;border-radius:8vmin;
+  box-shadow:0 0 3vmin rgba(255,61,0,.6),0 1vmin 3vmin rgba(0,0,0,.3);
+  animation:btnFire 1.5s ease-in-out infinite;cursor:pointer;
+}
+@keyframes btnFire{0%,100%{box-shadow:0 0 3vmin rgba(255,61,0,.6),0 1vmin 3vmin rgba(0,0,0,.3)}50%{box-shadow:0 0 5vmin rgba(255,61,0,.9),0 0 8vmin rgba(255,109,0,.4),0 1vmin 3vmin rgba(0,0,0,.3)}}
+.start-embers{position:absolute;width:100%;height:100%;pointer-events:none;overflow:hidden;z-index:-1}
+.ember{position:absolute;bottom:-2vmin;border-radius:50%;animation:emberRise linear infinite;opacity:.7}
+@keyframes emberRise{0%{transform:translateY(0) translateX(0);opacity:.7}50%{opacity:1}100%{transform:translateY(-105vh) translateX(var(--drift));opacity:0}}
+
+/* === 遊戲場景 === */
+.game-wrap{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;display:none}
+.scene-bg{position:absolute;top:0;left:0;width:100%;height:100%;transition:background 1s,opacity .8s}
+.scene-ground{position:absolute;bottom:0;width:100%;height:20vh;z-index:2;transition:background 1s}
+
+/* 目標物 */
+.target{
+  position:absolute;z-index:5;cursor:pointer;
+  transition:transform .3s;pointer-events:none;
+}
+.target svg{width:100%;height:100%}
+.target.burned{pointer-events:none}
+
+/* 目標物進場動畫 */
+.target-enter{animation:targetPop .5s ease-out both}
+@keyframes targetPop{0%{transform:scale(0);opacity:0}70%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
+
+/* 燒毀動畫 */
+@keyframes burnAway{
+  0%{transform:scale(1);filter:brightness(1)}
+  30%{transform:scale(1.1);filter:brightness(2) saturate(2)}
+  60%{transform:scale(1.15);filter:brightness(3) saturate(0) hue-rotate(30deg)}
+  100%{transform:scale(0);filter:brightness(3);opacity:0}
+}
+.target.burning{animation:burnAway .6s ease-in forwards}
+
+/* 替代物（燒完後出現的東西） */
+.reward{
+  position:absolute;z-index:6;pointer-events:none;
+  animation:rewardPop .6s ease-out both;
+}
+.reward svg{width:100%;height:100%}
+@keyframes rewardPop{0%{transform:scale(0) rotate(-20deg);opacity:0}60%{transform:scale(1.3) rotate(5deg);opacity:1}100%{transform:scale(1) rotate(0deg)}}
+
+/* 殘留火苗 */
+.flame-remain{
+  position:absolute;z-index:4;pointer-events:none;
+  animation:flameFlicker 0.3s ease-in-out infinite alternate;
+}
+@keyframes flameFlicker{0%{transform:scaleY(1) scaleX(1)}100%{transform:scaleY(1.15) scaleX(.9)}}
+
+/* === 噴火龍 === */
+.dragon{
+  position:absolute;z-index:20;pointer-events:none;
+  transition:left .6s ease-out,top .6s ease-out;
+  filter:drop-shadow(0 .5vmin 1vmin rgba(0,0,0,.3));
+}
+.dragon svg{width:100%;height:100%}
+.dragon-idle{animation:dragonHover 2s ease-in-out infinite}
+@keyframes dragonHover{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.5vmin)}}
+.dragon-fire{animation:dragonFirePose .3s ease-out}
+@keyframes dragonFirePose{0%{transform:scale(1)}50%{transform:scale(1.15)}100%{transform:scale(1.05)}}
+
+/* 龍噴火時發光 */
+.dragon.glowing{filter:drop-shadow(0 0 2vmin rgba(255,100,0,.8)) drop-shadow(0 .5vmin 1vmin rgba(0,0,0,.3))}
+
+/* === 火焰粒子 === */
+.fire-p{position:fixed;pointer-events:none;border-radius:50%;z-index:30}
+.fire-trail{position:fixed;pointer-events:none;border-radius:50%;z-index:28}
+
+/* 螢幕震動 */
+.shaking{animation:screenShake .3s ease-out}
+@keyframes screenShake{
+  0%{transform:translate(0,0)}
+  20%{transform:translate(-1vmin,.5vmin)}
+  40%{transform:translate(1vmin,-.5vmin)}
+  60%{transform:translate(-.5vmin,1vmin)}
+  80%{transform:translate(.5vmin,-.5vmin)}
+  100%{transform:translate(0,0)}
+}
+
+/* 全螢幕閃光 */
+.flash-overlay{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:50;animation:bigFlash .4s ease-out forwards}
+@keyframes bigFlash{0%{opacity:.5}100%{opacity:0}}
+
+/* 超大爆炸閃光 */
+.mega-flash{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:55;animation:megaFlash .7s ease-out forwards}
+@keyframes megaFlash{0%{opacity:.7}50%{opacity:.3}100%{opacity:0}}
+
+/* 關卡標題 */
+.level-title{
+  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  font-size:8vmin;font-weight:bold;color:white;
+  text-shadow:0 0 3vmin rgba(255,109,0,.6),0 .5vmin 2vmin rgba(0,0,0,.4);
+  z-index:100;pointer-events:none;
+  animation:levelTitleIn 1.5s ease-out forwards;
+  white-space:nowrap;
+}
+@keyframes levelTitleIn{0%{transform:translate(-50%,-50%) scale(0);opacity:0}30%{transform:translate(-50%,-50%) scale(1.2);opacity:1}50%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{transform:translate(-50%,-50%) scale(1) translateY(-5vmin);opacity:0}}
+
+/* 過關畫面 */
+.win-banner{
+  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  text-align:center;z-index:200;pointer-events:none;
+  animation:winIn .6s ease-out;
+}
+@keyframes winIn{0%{transform:translate(-50%,-50%) scale(0)}60%{transform:translate(-50%,-50%) scale(1.2)}100%{transform:translate(-50%,-50%) scale(1)}}
+.win-text{font-size:8vmin;font-weight:bold;color:white;text-shadow:0 0 3vmin rgba(255,109,0,.8),0 .5vmin 1.5vmin rgba(0,0,0,.3)}
+.win-emoji{font-size:12vmin;animation:winJump 1s ease-in-out infinite}
+@keyframes winJump{0%,100%{transform:translateY(0)}50%{transform:translateY(-2vmin)}}
+
+/* 進度指示 (頂部小火苗) */
+.progress-bar{
+  position:fixed;top:1.5vh;left:50%;transform:translateX(-50%);
+  display:flex;gap:1.5vw;z-index:100;
+  background:rgba(0,0,0,.3);border-radius:5vmin;padding:1vmin 2.5vmin;
+}
+.prog-dot{
+  width:5vmin;height:5vmin;border-radius:50%;
+  background:rgba(255,255,255,.2);
+  transition:all .3s;display:flex;align-items:center;justify-content:center;
+  font-size:3vmin;
+}
+.prog-dot.done{background:rgba(255,100,0,.7);box-shadow:0 0 1.5vmin rgba(255,100,0,.6)}
+
+/* 觸控漣漪 */
+.touch-ring{
+  position:fixed;pointer-events:none;z-index:40;
+  border:3px solid rgba(255,150,0,.6);border-radius:50%;
+  animation:touchRing .5s ease-out forwards;
+}
+@keyframes touchRing{0%{width:0;height:0;opacity:1}100%{width:15vmin;height:15vmin;opacity:0}}
+</style>
+</head>
+<body>
+
+<!-- 開始畫面 -->
+<div class="start-screen" id="startScreen">
+  <div class="start-embers" id="startEmbers"></div>
+  <div class="start-title">🔥 噴火龍冒險 🔥</div>
+  <div class="start-dragon">🐉</div>
+  <button class="start-btn" id="startBtn">👆 出發冒險！</button>
+</div>
+
+<!-- 遊戲 -->
+<div class="game-wrap" id="gameWrap">
+  <div class="scene-bg" id="sceneBg"></div>
+  <div class="scene-ground" id="sceneGround"></div>
+  <div class="progress-bar" id="progressBar"></div>
+  <div id="targetLayer"></div>
+  <div id="effectLayer"></div>
+</div>
+
+<script>
+// ====================
+// 防平板手勢
+// ====================
+document.addEventListener('gesturestart',e=>e.preventDefault(),{passive:false});
+document.addEventListener('gesturechange',e=>e.preventDefault(),{passive:false});
+document.addEventListener('gestureend',e=>e.preventDefault(),{passive:false});
+let lastTap=0;
+document.addEventListener('touchend',e=>{const n=Date.now();if(n-lastTap<300)e.preventDefault();lastTap=n},{passive:false});
+document.body.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+
+function tryFullscreen(){
+  const el=document.documentElement;
+  if(el.requestFullscreen)el.requestFullscreen().catch(()=>{});
+  else if(el.webkitRequestFullscreen)el.webkitRequestFullscreen();
+}
+
+// ====================
+// 音效
+// ====================
+const AC=window.AudioContext||window.webkitAudioContext;
+let ac;
+function initAudio(){if(!ac)ac=new AC()}
+
+function sndFire(){
+  if(!ac)return;
+  const o=ac.createOscillator(),g=ac.createGain();
+  o.connect(g);g.connect(ac.destination);o.type='sawtooth';
+  o.frequency.setValueAtTime(100,ac.currentTime);
+  o.frequency.exponentialRampToValueAtTime(40,ac.currentTime+.4);
+  g.gain.setValueAtTime(.2,ac.currentTime);
+  g.gain.exponentialRampToValueAtTime(.01,ac.currentTime+.5);
+  o.start();o.stop(ac.currentTime+.5);
+  // 嘶嘶
+  const h=ac.createOscillator(),hg=ac.createGain();
+  h.connect(hg);hg.connect(ac.destination);h.type='sawtooth';
+  h.frequency.setValueAtTime(1500,ac.currentTime);
+  h.frequency.exponentialRampToValueAtTime(600,ac.currentTime+.35);
+  hg.gain.setValueAtTime(.07,ac.currentTime);
+  hg.gain.exponentialRampToValueAtTime(.01,ac.currentTime+.35);
+  h.start();h.stop(ac.currentTime+.35);
+}
+
+function sndExplode(){
+  if(!ac)return;
+  const o=ac.createOscillator(),g=ac.createGain();
+  o.connect(g);g.connect(ac.destination);o.type='square';
+  o.frequency.setValueAtTime(150,ac.currentTime);
+  o.frequency.exponentialRampToValueAtTime(30,ac.currentTime+.3);
+  g.gain.setValueAtTime(.25,ac.currentTime);
+  g.gain.exponentialRampToValueAtTime(.01,ac.currentTime+.35);
+  o.start();o.stop(ac.currentTime+.35);
+}
+
+function sndWin(){
+  if(!ac)return;
+  [523,659,784,1047,1318,1568].forEach((f,i)=>{
+    const o=ac.createOscillator(),g=ac.createGain();
+    o.connect(g);g.connect(ac.destination);o.type='triangle';
+    const t=ac.currentTime+i*.1;
+    o.frequency.setValueAtTime(f,t);
+    g.gain.setValueAtTime(.2,t);
+    g.gain.exponentialRampToValueAtTime(.01,t+.3);
+    o.start(t);o.stop(t+.3);
+  });
+}
+
+function sndMega(){
+  if(!ac)return;
+  for(let i=0;i<3;i++){
+    const o=ac.createOscillator(),g=ac.createGain();
+    o.connect(g);g.connect(ac.destination);o.type='sawtooth';
+    const t=ac.currentTime+i*.08;
+    o.frequency.setValueAtTime(60+i*30,t);
+    o.frequency.exponentialRampToValueAtTime(20,t+.5);
+    g.gain.setValueAtTime(.18,t);
+    g.gain.exponentialRampToValueAtTime(.01,t+.6);
+    o.start(t);o.stop(t+.6);
+  }
+}
+
+// ====================
+// 噴火龍 SVG
+// ====================
+function dragonSVG(){
+  return `<svg viewBox="0 0 180 160" xmlns="http://www.w3.org/2000/svg">
+    <!-- 翅膀 -->
+    <g class="wing-left">
+      <path d="M55 70 L15 20 L40 58 L20 10 L48 52 L30 5 L55 60" fill="#FF8A65" opacity=".85"/>
+    </g>
+    <g class="wing-right">
+      <path d="M115 70 L155 20 L130 58 L150 10 L122 52 L140 5 L115 60" fill="#FF8A65" opacity=".85"/>
+    </g>
+    <!-- 尾巴 -->
+    <path d="M120 100 Q145 95 160 85 Q155 98 145 105 Q155 100 165 90 Q158 105 148 110" fill="#E53935"/>
+    <!-- 尾巴火焰 -->
+    <ellipse cx="168" cy="84" rx="7" ry="10" fill="#FF6D00">
+      <animate attributeName="ry" values="10;13;10" dur=".4s" repeatCount="indefinite"/>
+    </ellipse>
+    <ellipse cx="168" cy="82" rx="5" ry="7" fill="#FFAB00">
+      <animate attributeName="ry" values="7;10;7" dur=".3s" repeatCount="indefinite"/>
+    </ellipse>
+    <ellipse cx="168" cy="81" rx="3" ry="5" fill="#FFF176">
+      <animate attributeName="ry" values="5;7;5" dur=".25s" repeatCount="indefinite"/>
+    </ellipse>
+    <!-- 身體 -->
+    <ellipse cx="85" cy="100" rx="35" ry="28" fill="#E53935"/>
+    <ellipse cx="85" cy="103" rx="24" ry="19" fill="#FFAB91"/>
+    <!-- 腳 -->
+    <ellipse cx="62" cy="120" rx="12" ry="7" fill="#E53935"/>
+    <ellipse cx="108" cy="120" rx="12" ry="7" fill="#E53935"/>
+    <!-- 頭 -->
+    <circle cx="85" cy="55" r="28" fill="#E53935"/>
+    <!-- 角 -->
+    <path d="M68 35 L60 10 L72 30" fill="#B71C1C"/>
+    <path d="M102 35 L110 10 L98 30" fill="#B71C1C"/>
+    <!-- 眼睛 -->
+    <circle cx="74" cy="48" r="8" fill="white"/>
+    <circle cx="96" cy="48" r="8" fill="white"/>
+    <circle cx="75" cy="47" r="5" fill="#333">
+      <animate attributeName="r" values="5;5;1;5;5" dur="3s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="97" cy="47" r="5" fill="#333">
+      <animate attributeName="r" values="5;5;1;5;5" dur="3s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="77" cy="45" r="2" fill="white"/>
+    <circle cx="99" cy="45" r="2" fill="white"/>
+    <!-- 眉毛 -->
+    <path d="M66 40 L80 42" stroke="#B71C1C" stroke-width="3" stroke-linecap="round"/>
+    <path d="M104 40 L90 42" stroke="#B71C1C" stroke-width="3" stroke-linecap="round"/>
+    <!-- 鼻孔 -->
+    <circle cx="80" cy="60" r="2.5" fill="#B71C1C"/>
+    <circle cx="90" cy="60" r="2.5" fill="#B71C1C"/>
+    <!-- 嘴 -->
+    <path d="M72 66 Q85 78 98 66" stroke="#B71C1C" stroke-width="2.5" fill="none"/>
+    <path d="M76 66 L78 71 L80 66" fill="white"/>
+    <path d="M90 66 L92 71 L94 66" fill="white"/>
+    <!-- 手臂 -->
+    <path d="M52 88 L38 80 L42 88" fill="#E53935"/>
+    <path d="M118 88 L132 80 L128 88" fill="#E53935"/>
+  </svg>`;
+}
+
+// ====================
+// 場景資料
+// ====================
+function getScenes(cycle){
+  const extra = cycle; // 每輪多 cycle 個目標
+  return [
+    {
+      name:'🌲 森林冒險！',
+      bg:'linear-gradient(180deg,#87CEEB 0%,#68B684 60%,#2E7D32 100%)',
+      ground:'linear-gradient(180deg,#388E3C,#1B5E20)',
+      targets: makeTargets(3+extra, 'tree'),
+      reward:'animal'
+    },
+    {
+      name:'🧊 冰雪世界！',
+      bg:'linear-gradient(180deg,#E3F2FD 0%,#90CAF9 50%,#BBDEFB 100%)',
+      ground:'linear-gradient(180deg,#E0E0E0,#B0BEC5)',
+      targets: makeTargets(4+extra, 'ice'),
+      reward:'baby-dino'
+    },
+    {
+      name:'🌙 黑夜營地！',
+      bg:'linear-gradient(180deg,#0D1B2A 0%,#1B2838 50%,#2C3E50 100%)',
+      ground:'linear-gradient(180deg,#3E2723,#1B1210)',
+      targets: makeTargets(4+extra, 'campfire'),
+      reward:'fire'
+    },
+    {
+      name:'🏰 城堡救援！',
+      bg:'linear-gradient(180deg,#5C6BC0 0%,#7986CB 50%,#9FA8DA 100%)',
+      ground:'linear-gradient(180deg,#78909C,#546E7A)',
+      targets: makeTargets(5+extra, 'wall'),
+      reward:'friend-dragon'
+    },
+    {
+      name:'🌋 火山爆發！',
+      bg:'linear-gradient(180deg,#BF360C 0%,#E65100 40%,#FF6D00 70%,#4E342E 100%)',
+      ground:'linear-gradient(180deg,#5D4037,#3E2723)',
+      targets: makeTargets(5+extra, 'rock'),
+      reward:'lava'
+    },
+    {
+      name:'🎆 煙火派對！',
+      bg:'linear-gradient(180deg,#0D1B2A 0%,#1A237E 50%,#283593 100%)',
+      ground:'linear-gradient(180deg,#1B1B2F,#0F0F1A)',
+      targets: makeTargets(6+extra, 'firework'),
+      reward:'firework-burst'
+    }
+  ];
+}
+
+function makeTargets(count, type){
+  const arr=[];
+  const cols=Math.min(count,4);
+  for(let i=0;i<count;i++){
+    const col=i%cols;
+    const row=Math.floor(i/cols);
+    arr.push({
+      type,
+      x: 15+col*(65/(cols-1||1)) + (Math.random()*6-3),
+      y: 30+row*22 + (Math.random()*5-2.5),
+    });
+  }
+  return arr;
+}
+
+// ====================
+// 目標物 SVG
+// ====================
+function targetSVG(type){
+  switch(type){
+    case 'tree': return `<svg viewBox="0 0 80 100"><polygon points="40,5 10,55 70,55" fill="#4CAF50"/><polygon points="40,20 15,65 65,65" fill="#388E3C"/><rect x="33" y="60" width="14" height="25" rx="3" fill="#795548"/></svg>`;
+    case 'ice': return `<svg viewBox="0 0 80 80"><polygon points="40,5 75,35 65,75 15,75 5,35" fill="#B3E5FC" stroke="#81D4FA" stroke-width="2"/><polygon points="40,15 65,38 58,65 22,65 15,38" fill="#E1F5FE" opacity=".6"/><line x1="30" y1="25" x2="35" y2="40" stroke="white" stroke-width="2" opacity=".5"/></svg>`;
+    case 'campfire': return `<svg viewBox="0 0 80 80"><path d="M25 70 L35 50 L30 55 L40 35 L50 55 L45 50 L55 70" fill="#795548"/><circle cx="40" cy="65" r="15" fill="#9E9E9E" opacity=".3"/></svg>`;
+    case 'wall': return `<svg viewBox="0 0 80 90"><rect x="5" y="10" width="70" height="75" rx="3" fill="#78909C"/><rect x="10" y="15" width="28" height="18" rx="2" fill="#90A4AE"/><rect x="42" y="15" width="28" height="18" rx="2" fill="#90A4AE"/><rect x="10" y="37" width="28" height="18" rx="2" fill="#90A4AE"/><rect x="42" y="37" width="28" height="18" rx="2" fill="#90A4AE"/><rect x="10" y="59" width="28" height="18" rx="2" fill="#90A4AE"/><rect x="42" y="59" width="28" height="18" rx="2" fill="#90A4AE"/></svg>`;
+    case 'rock': return `<svg viewBox="0 0 80 80"><ellipse cx="40" cy="50" rx="35" ry="28" fill="#6D4C41"/><ellipse cx="40" cy="48" rx="30" ry="23" fill="#795548"/><ellipse cx="35" cy="45" rx="12" ry="8" fill="#8D6E63" opacity=".5"/></svg>`;
+    case 'firework': return `<svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="20" fill="#5C6BC0" opacity=".8"/><circle cx="40" cy="40" r="14" fill="#7986CB"/><circle cx="40" cy="40" r="7" fill="#9FA8DA"/><line x1="40" y1="60" x2="40" y2="80" stroke="#9E9E9E" stroke-width="2"/></svg>`;
+  }
+}
+
+function rewardSVG(type){
+  switch(type){
+    case 'animal': // 可愛小兔子
+      return `<svg viewBox="0 0 60 70"><ellipse cx="30" cy="45" rx="16" ry="18" fill="#F8BBD0"/><circle cx="30" cy="28" r="14" fill="#F8BBD0"/><ellipse cx="22" cy="10" rx="5" ry="14" fill="#F8BBD0"/><ellipse cx="22" cy="10" rx="3" ry="10" fill="#FCE4EC"/><ellipse cx="38" cy="10" rx="5" ry="14" fill="#F8BBD0"/><ellipse cx="38" cy="10" rx="3" ry="10" fill="#FCE4EC"/><circle cx="25" cy="26" r="3" fill="#333"/><circle cx="35" cy="26" r="3" fill="#333"/><ellipse cx="30" cy="32" rx="3" ry="2" fill="#FF8A80"/></svg>`;
+    case 'baby-dino':
+      return `<svg viewBox="0 0 60 60"><ellipse cx="30" cy="40" rx="18" ry="14" fill="#4CAF50"/><ellipse cx="30" cy="42" rx="12" ry="9" fill="#A5D6A7"/><circle cx="30" cy="22" r="14" fill="#4CAF50"/><circle cx="24" cy="18" r="4" fill="white"/><circle cx="36" cy="18" r="4" fill="white"/><circle cx="25" cy="17.5" r="2.5" fill="#333"/><circle cx="37" cy="17.5" r="2.5" fill="#333"/><path d="M25 28 Q30 33 35 28" stroke="white" stroke-width="1.5" fill="none"/></svg>`;
+    case 'fire': // 火苗
+      return `<svg viewBox="0 0 50 60"><ellipse cx="25" cy="35" rx="15" ry="22" fill="#FF6D00"><animate attributeName="ry" values="22;25;22" dur=".4s" repeatCount="indefinite"/></ellipse><ellipse cx="25" cy="33" rx="10" ry="16" fill="#FFAB00"><animate attributeName="ry" values="16;19;16" dur=".35s" repeatCount="indefinite"/></ellipse><ellipse cx="25" cy="31" rx="6" ry="10" fill="#FFF176"><animate attributeName="ry" values="10;12;10" dur=".3s" repeatCount="indefinite"/></ellipse></svg>`;
+    case 'friend-dragon': // 小龍朋友
+      return `<svg viewBox="0 0 60 60"><circle cx="30" cy="24" r="14" fill="#7C4DFF"/><path d="M18 28 L8 12 L20 24" fill="#B388FF" opacity=".8"/><path d="M42 28 L52 12 L40 24" fill="#B388FF" opacity=".8"/><circle cx="25" cy="20" r="4" fill="white"/><circle cx="35" cy="20" r="4" fill="white"/><circle cx="26" cy="19.5" r="2.5" fill="#333"/><circle cx="36" cy="19.5" r="2.5" fill="#333"/><path d="M25 29 Q30 33 35 29" stroke="white" stroke-width="1.5" fill="none"/><ellipse cx="30" cy="42" rx="16" ry="12" fill="#7C4DFF"/><ellipse cx="30" cy="44" rx="10" ry="8" fill="#B388FF"/></svg>`;
+    case 'lava':
+      return `<svg viewBox="0 0 50 50"><ellipse cx="25" cy="30" rx="18" ry="12" fill="#FF3D00"><animate attributeName="ry" values="12;14;12" dur=".5s" repeatCount="indefinite"/></ellipse><ellipse cx="25" cy="28" rx="12" ry="8" fill="#FF6D00"/><ellipse cx="25" cy="26" rx="7" ry="5" fill="#FFAB00"/></svg>`;
+    case 'firework-burst':
+      return `<svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="3" fill="#FFF"/>${[0,45,90,135,180,225,270,315].map(a=>{
+        const r=a*Math.PI/180;const x=30+Math.cos(r)*20;const y=30+Math.sin(r)*20;
+        const colors=['#FF6B6B','#4ECDC4','#FFEAA7','#DDA0DD','#74b9ff','#fd79a8','#00b894','#a29bfe'];
+        return `<line x1="30" y1="30" x2="${x}" y2="${y}" stroke="${colors[a/45]}" stroke-width="2.5"/><circle cx="${x}" cy="${y}" r="3" fill="${colors[a/45]}"/>`;
+      }).join('')}</svg>`;
+  }
+}
+
+// ====================
+// 遊戲狀態
+// ====================
+const gameWrap=document.getElementById('gameWrap');
+const sceneBg=document.getElementById('sceneBg');
+const sceneGround=document.getElementById('sceneGround');
+const targetLayer=document.getElementById('targetLayer');
+const effectLayer=document.getElementById('effectLayer');
+const progressBar=document.getElementById('progressBar');
+
+let scenes,currentLevel=0,cycle=0,targets=[],burned=0;
+let dragonEl,dragonX=15,dragonY=35;
+let isPlaying=false,isTransitioning=false;
+
+// ====================
+// 開始畫面餘燼
+// ====================
+(function initEmbers(){
+  const c=document.getElementById('startEmbers');
+  for(let i=0;i<20;i++){
+    const e=document.createElement('div');e.className='ember';
+    const s=.5+Math.random()*1.5;
+    e.style.cssText=`width:${s}vmin;height:${s}vmin;background:${['#FF6D00','#FFAB00','#FF3D00','#FFF176'][Math.floor(Math.random()*4)]};left:${Math.random()*100}%;animation-duration:${3+Math.random()*4}s;animation-delay:${Math.random()*3}s;--drift:${(Math.random()-.5)*10}vw`;
+    c.appendChild(e);
+  }
+})();
+
+// ====================
+// 開始按鈕
+// ====================
+function startGame(){
+  initAudio();tryFullscreen();
+  document.getElementById('startScreen').style.display='none';
+  gameWrap.style.display='block';
+  scenes=getScenes(0);
+  currentLevel=0;cycle=0;
+  isPlaying=true;
+  createDragon();
+  loadLevel();
+}
+document.getElementById('startBtn').addEventListener('click',startGame);
+document.getElementById('startBtn').addEventListener('touchstart',e=>{e.preventDefault();startGame()},{passive:false});
+
+// ====================
+// 噴火龍
+// ====================
+function createDragon(){
+  dragonEl=document.createElement('div');
+  dragonEl.className='dragon dragon-idle';
+  dragonEl.style.width='18vmin';dragonEl.style.height='18vmin';
+  dragonEl.innerHTML=dragonSVG();
+  dragonX=8;dragonY=35;
+  dragonEl.style.left=dragonX+'vw';dragonEl.style.top=dragonY+'vh';
+  gameWrap.appendChild(dragonEl);
+  driftDragon();
+}
+
+function driftDragon(){
+  function move(){
+    if(!dragonEl||!dragonEl.parentNode)return;
+    dragonX=5+Math.random()*25;
+    dragonY=20+Math.random()*35;
+    dragonEl.style.left=dragonX+'vw';
+    dragonEl.style.top=dragonY+'vh';
+    setTimeout(move,3000+Math.random()*3000);
+  }
+  setTimeout(move,2000);
+}
+
+function getDragonMouth(){
+  const r=dragonEl.getBoundingClientRect();
+  return {x:r.left+r.width*.55, y:r.top+r.height*.4};
+}
+
+// ====================
+// 關卡
+// ====================
+function loadLevel(){
+  isTransitioning=true;
+  const s=scenes[currentLevel];
+
+  // 清除
+  targetLayer.innerHTML='';
+  effectLayer.innerHTML='';
+  targets=[];burned=0;
+
+  // 場景背景
+  sceneBg.style.background=s.bg;
+  sceneGround.style.background=s.ground;
+
+  // 進度條
+  updateProgress(s.targets.length);
+
+  // 關卡標題
+  const title=document.createElement('div');
+  title.className='level-title';
+  title.textContent=s.name;
+  gameWrap.appendChild(title);
+  setTimeout(()=>title.remove(),1500);
+
+  // 放目標物
+  setTimeout(()=>{
+    s.targets.forEach((t,i)=>{
+      setTimeout(()=>placeTarget(t,i),i*150);
+    });
+    setTimeout(()=>{isTransitioning=false},s.targets.length*150+300);
+  },800);
+}
+
+function placeTarget(tData,index){
+  const el=document.createElement('div');
+  el.className='target target-enter';
+  el.style.width='10vmin';el.style.height='12vmin';
+  el.style.left=tData.x+'vw';el.style.top=tData.y+'vh';
+  el.innerHTML=targetSVG(tData.type);
+  el.dataset.index=index;
+  targetLayer.appendChild(el);
+  targets.push({el,data:tData,burned:false});
+}
+
+function updateProgress(total){
+  progressBar.innerHTML='';
+  for(let i=0;i<total;i++){
+    const d=document.createElement('div');
+    d.className='prog-dot';
+    d.textContent='🔥';
+    d.style.opacity='.3';
+    progressBar.appendChild(d);
+  }
+}
+
+function markProgress(index){
+  const dots=progressBar.children;
+  if(dots[index]){
+    dots[index].classList.add('done');
+    dots[index].style.opacity='1';
+  }
+}
+
+// ====================
+// 噴火！
+// ====================
+function fireAt(tx,ty){
+  if(isTransitioning||!isPlaying)return;
+
+  const mouth=getDragonMouth();
+
+  // 龍發光
+  dragonEl.classList.add('glowing');
+  dragonEl.classList.remove('dragon-idle');
+  dragonEl.classList.add('dragon-fire');
+  setTimeout(()=>{
+    dragonEl.classList.remove('glowing','dragon-fire');
+    dragonEl.classList.add('dragon-idle');
+  },400);
+
+  sndFire();
+
+  // 找最近的未燒目標
+  let closest=null,closestDist=Infinity;
+  targets.forEach(t=>{
+    if(t.burned)return;
+    const r=t.el.getBoundingClientRect();
+    const cx=r.left+r.width/2, cy=r.top+r.height/2;
+    const d=Math.hypot(tx-cx,ty-cy);
+    if(d<closestDist){closestDist=d;closest=t;}
+  });
+
+  // 火焰目標位置（有目標打目標，沒目標打點擊處）
+  let hitX=tx,hitY=ty;
+  if(closest){
+    const r=closest.el.getBoundingClientRect();
+    hitX=r.left+r.width/2;hitY=r.top+r.height/2;
+  }
+
+  // 火焰射線粒子
+  fireStream(mouth.x,mouth.y,hitX,hitY);
+
+  // 命中效果
+  setTimeout(()=>{
+    if(closest&&!closest.burned){
+      burnTarget(closest);
+    }
+    explodeAt(hitX,hitY);
+    screenShake();
+    flashScreen();
+  },250);
+}
+
+// 火焰射線
+function fireStream(sx,sy,ex,ey){
+  const fireC=['#FF6D00','#FF3D00','#FFAB00','#FF8F00','#FFF176','#FF5722'];
+  const dist=Math.hypot(ex-sx,ey-sy);
+  const steps=Math.min(Math.floor(dist/8),30);
+  for(let i=0;i<steps;i++){
+    setTimeout(()=>{
+      const p=document.createElement('div');p.className='fire-p';
+      const s=6+Math.random()*14;
+      const progress=i/steps;
+      const px=sx+(ex-sx)*progress+(Math.random()-.5)*20;
+      const py=sy+(ey-sy)*progress+(Math.random()-.5)*20;
+      const col=fireC[Math.floor(Math.random()*fireC.length)];
+      p.style.cssText=`width:${s}px;height:${s}px;background:${col};left:${px}px;top:${py}px;box-shadow:0 0 ${s}px ${col}`;
+      p.animate([
+        {transform:'scale(1)',opacity:1},
+        {transform:'scale(.2)',opacity:0}
+      ],{duration:300+Math.random()*200,easing:'ease-out'});
+      document.body.appendChild(p);
+      setTimeout(()=>p.remove(),500);
+    },i*12);
+  }
+}
+
+// 爆炸
+function explodeAt(x,y){
+  sndExplode();
+  const colors=['#FF6D00','#FF3D00','#FFAB00','#FFF176','#FF5722','#FF8F00','#FF9800'];
+  for(let i=0;i<35;i++){
+    const p=document.createElement('div');p.className='fire-p';
+    const s=4+Math.random()*16;
+    p.style.cssText=`width:${s}px;height:${s}px;background:${colors[Math.floor(Math.random()*colors.length)]};left:${x}px;top:${y}px;box-shadow:0 0 ${s*1.5}px ${colors[Math.floor(Math.random()*colors.length)]}`;
+    const a=Math.random()*Math.PI*2;
+    const d=30+Math.random()*120;
+    const tx=Math.cos(a)*d,ty=Math.sin(a)*d-20;
+    p.animate([
+      {transform:'translate(0,0) scale(1)',opacity:1},
+      {transform:`translate(${tx}px,${ty}px) scale(.1)`,opacity:0}
+    ],{duration:400+Math.random()*400,easing:'ease-out'});
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(),800);
+  }
+}
+
+// 燒毀目標
+function burnTarget(t){
+  t.burned=true;
+  burned++;
+  t.el.classList.add('burning');
+  markProgress(burned-1);
+
+  const scene=scenes[currentLevel];
+  const r=t.el.getBoundingClientRect();
+  const cx=r.left+r.width/2,cy=r.top+r.height/2;
+
+  // 燒完放獎勵
+  setTimeout(()=>{
+    t.el.remove();
+    // 殘留火苗
+    const flame=document.createElement('div');
+    flame.className='flame-remain';
+    flame.style.cssText=`left:${t.data.x}vw;top:${t.data.y+3}vh;width:5vmin;height:6vmin`;
+    flame.innerHTML=rewardSVG('fire');
+    targetLayer.appendChild(flame);
+
+    // 獎勵物
+    if(scene.reward!=='fire'&&scene.reward!=='lava'){
+      const rw=document.createElement('div');
+      rw.className='reward';
+      rw.style.cssText=`left:${t.data.x}vw;top:${t.data.y-2}vh;width:8vmin;height:8vmin`;
+      rw.innerHTML=rewardSVG(scene.reward);
+      targetLayer.appendChild(rw);
+    }
+    if(scene.reward==='lava'){
+      const rw=document.createElement('div');
+      rw.className='reward';
+      rw.style.cssText=`left:${t.data.x}vw;top:${t.data.y+1}vh;width:8vmin;height:6vmin`;
+      rw.innerHTML=rewardSVG('lava');
+      targetLayer.appendChild(rw);
+    }
+    if(scene.reward==='firework-burst'){
+      const rw=document.createElement('div');
+      rw.className='reward';
+      rw.style.cssText=`left:${t.data.x-2}vw;top:${t.data.y-5}vh;width:12vmin;height:12vmin`;
+      rw.innerHTML=rewardSVG('firework-burst');
+      targetLayer.appendChild(rw);
+      // 額外煙火粒子
+      for(let k=0;k<20;k++){
+        setTimeout(()=>{
+          const fp=document.createElement('div');fp.className='fire-p';
+          const s=4+Math.random()*10;
+          const colors=['#FF6B6B','#4ECDC4','#FFEAA7','#DDA0DD','#74b9ff','#fd79a8','#00b894'];
+          fp.style.cssText=`width:${s}px;height:${s}px;background:${colors[Math.floor(Math.random()*colors.length)]};left:${cx}px;top:${cy}px`;
+          const a=Math.random()*Math.PI*2,d=40+Math.random()*80;
+          fp.animate([{transform:'translate(0,0) scale(1)',opacity:1},{transform:`translate(${Math.cos(a)*d}px,${Math.sin(a)*d}px) scale(0)`,opacity:0}],{duration:600+Math.random()*400,easing:'ease-out'});
+          document.body.appendChild(fp);setTimeout(()=>fp.remove(),1000);
+        },k*30);
+      }
+    }
+
+    // 檢查過關
+    if(burned>=scenes[currentLevel].targets.length){
+      setTimeout(()=>winLevel(),300);
+    }
+  },500);
+}
+
+// 螢幕震動
+function screenShake(){
+  gameWrap.classList.remove('shaking');
+  void gameWrap.offsetWidth;
+  gameWrap.classList.add('shaking');
+  setTimeout(()=>gameWrap.classList.remove('shaking'),300);
+}
+
+function flashScreen(){
+  const f=document.createElement('div');
+  f.className='flash-overlay';
+  f.style.background='radial-gradient(circle,rgba(255,100,0,.5),rgba(255,60,0,.2),transparent 70%)';
+  document.body.appendChild(f);setTimeout(()=>f.remove(),400);
+}
+
+// 超級爆炸（多指）
+function megaFire(){
+  sndMega();
+  const mouth=getDragonMouth();
+  dragonEl.classList.add('glowing');
+
+  // 四面八方噴
+  for(let a=0;a<8;a++){
+    const angle=(Math.PI*2/8)*a;
+    const ex=mouth.x+Math.cos(angle)*300;
+    const ey=mouth.y+Math.sin(angle)*300;
+    fireStream(mouth.x,mouth.y,ex,ey);
+  }
+
+  // 燒所有未燒目標
+  setTimeout(()=>{
+    targets.forEach(t=>{
+      if(!t.burned){
+        const r=t.el.getBoundingClientRect();
+        explodeAt(r.left+r.width/2,r.top+r.height/2);
+        burnTarget(t);
+      }
+    });
+
+    // 超級閃光
+    const f=document.createElement('div');f.className='mega-flash';
+    f.style.background='radial-gradient(circle,rgba(255,200,0,.7),rgba(255,100,0,.4),transparent 80%)';
+    document.body.appendChild(f);setTimeout(()=>f.remove(),700);
+
+    screenShake();
+    dragonEl.classList.remove('glowing');
+  },300);
+}
+
+// ====================
+// 過關
+// ====================
+function winLevel(){
+  isTransitioning=true;
+  sndWin();
+
+  // 慶祝爆炸
+  for(let i=0;i<5;i++){
+    setTimeout(()=>{
+      const x=Math.random()*window.innerWidth;
+      const y=50+Math.random()*(window.innerHeight*.5);
+      explodeAt(x,y);
+    },i*200);
+  }
+
+  // 橫幅
+  const banner=document.createElement('div');banner.className='win-banner';
+  banner.innerHTML=`<div class="win-text">🔥 太厲害了！🔥</div><div class="win-emoji">🐉🎉🔥</div>`;
+  gameWrap.appendChild(banner);
+
+  setTimeout(()=>{
+    banner.remove();
+    // 下一關
+    currentLevel++;
+    if(currentLevel>=6){currentLevel=0;cycle++;scenes=getScenes(cycle);}
+    loadLevel();
+  },2500);
+}
+
+// ====================
+// 觸控事件
+// ====================
+document.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  if(!isPlaying)return;
+
+  const touches=e.changedTouches;
+
+  // 多指 → 超級噴火
+  if(touches.length>=3){
+    megaFire();
+    return;
+  }
+
+  for(let i=0;i<touches.length;i++){
+    const t=touches[i];
+    // 觸控漣漪
+    showRing(t.clientX,t.clientY);
+    fireAt(t.clientX,t.clientY);
+  }
+},{passive:false});
+
+document.addEventListener('click',e=>{
+  if(!isPlaying)return;
+  showRing(e.clientX,e.clientY);
+  fireAt(e.clientX,e.clientY);
+});
+
+// 鍵盤支援
+document.addEventListener('keydown',e=>{
+  if(e.repeat||!isPlaying)return;
+  const x=Math.random()*window.innerWidth;
+  const y=window.innerHeight*.2+Math.random()*(window.innerHeight*.5);
+  fireAt(x,y);
+});
+
+function showRing(x,y){
+  const r=document.createElement('div');r.className='touch-ring';
+  r.style.left=x+'px';r.style.top=y+'px';
+  r.style.marginLeft='-7.5vmin';r.style.marginTop='-7.5vmin';
+  document.body.appendChild(r);setTimeout(()=>r.remove(),500);
+}
+
+</script>
+</body>
+</html>
